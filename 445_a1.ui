@@ -149,6 +149,9 @@ httpc help
 httpc help get
 httpc help post
 
+[Host: localhost] [Port: 80]
+httpc GET http://localhost/
+
 [Host: httpbin.org] [Port: 80]
 httpc GET http://httpbin.org/status/418
 httpc GET -h Content-Type:application/json http://httpbin.org/get

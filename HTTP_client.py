@@ -69,6 +69,8 @@ class MyApplication(pygubu.TkApplication):
 
                 host = str(url.split("/")[2])
 
+                print(request)
+
                 if "get" in request or "GET" in request:
                     official_request = self.get_request(request, host)
                 elif "post" in request or "POST" in request:
@@ -99,7 +101,7 @@ class MyApplication(pygubu.TkApplication):
                     self.message.configure(text="Bad request, please try again.", foreground="red")
                     return
 
-                if "403 FORBIDDEN" in response:
+                if "403 Forbidden" in response:
                     self.message.configure(text="This request is forbidden, please try a different one.",
                                            foreground="red")
                     return
@@ -144,6 +146,10 @@ class MyApplication(pygubu.TkApplication):
 
                 response += "\n---------------------------------------------\n\n"
 
+                response = response.replace("<br />", "\n")
+                response = response.replace("<br/>", "\n")
+                response = response.replace("<br>", "\n")
+
                 if verbose:
                     self.response.insert(tkinter.END, str(response))
                     if output:
@@ -175,9 +181,11 @@ class MyApplication(pygubu.TkApplication):
                         split = contents[x].split(":")
                         headers.append(str(split[0]) + ": " + str(split[1]))
 
-            official_request += contents[len(contents) - 1]
+            official_request += request.split(host)[1]
 
             official_request += " HTTP/1.0\r\nHost: " + str(host)
+
+            print(official_request)
 
             if len(headers) > 0:
                 official_request += "\r\n"

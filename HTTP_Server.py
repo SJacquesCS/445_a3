@@ -7,6 +7,7 @@ import threading
 import os
 import time
 
+
 def run_server(host, port):
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -29,11 +30,11 @@ def handle_client(conn, address):
             useful_data = decoded_data.split(" HTTP/")[0]
             print(decoded_data)
 
-            if 'GET /' in useful_data:
+            if 'GET' in useful_data:
                 get_request(conn, useful_data)
                 break
 
-            if 'POST /' in useful_data:
+            if 'POST' in useful_data:
                 post_request(conn, useful_data)
                 break
 
