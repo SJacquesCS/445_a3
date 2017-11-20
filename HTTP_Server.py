@@ -6,60 +6,65 @@ import socket
 import threading
 import os
 import time
+from packet import Packet
 
 
 def run_server(host, port):
-    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        listener.bind((host, port))
-        listener.listen(5)
+        listener.bind(("", port))
         print('Server is listening at port', port)
         while True:
-            conn, address = listener.accept()
-            threading.Thread(target=handle_client, args=(conn, address)).start()
+            data, sender = listener.recvfrom(1024)
+            handle_client(listener, data, sender)
     finally:
         listener.close()
 
 
-def handle_client(conn, address):
-    print('New client from', address)
+def handle_client(conn, data, address):
+    p = Packet.from_bytes(data)
+
+    port = p.peer_port
+    decoded_data = p.payload.decode("utf-8")
+
+    print('Router: ', address)
+    print('Packet: ', p)
+    print("Address: ", p.peer_ip_addr)
+    print('Payload: ', decoded_data)
+
     try:
         while True:
-            data = conn.recv(1024)
-            decoded_data = data.decode("utf-8")
             useful_data = decoded_data.split(" HTTP/")[0]
             print(decoded_data)
 
             if 'GET' in useful_data:
-                get_request(conn, useful_data)
+                get_request(conn, useful_data, p.peer_ip_addr, p.peer_port, address, port)
                 break
 
             if 'POST' in useful_data:
-                post_request(conn, useful_data)
+                post_request(conn, useful_data, p.peer_ip_addr, p.peer_port, address, port)
                 break
 
     except FileNotFoundError:
         response = http_response(404, 0)
         response = response.encode("utf-8")
-        conn.sendall(response)
+        conn.sendto(response)
 
     except PermissionError:
         response = http_response(403, 0)
         response = response.encode("utf-8")
-        conn.sendall(response)
+        conn.sendto(response)
 
     except OSError:
         response = http_response(400, 0)
         response = response.encode("utf-8")
-        conn.sendall(response)
-
+        conn.sendto(response)
 
     finally:
         print('Client from', address, 'has disconnected')
-        conn.close()
 
 
-def get_request(conn, useful_data):
+def get_request(conn, useful_data, peer_address, peer_port, address, port):
     useful_data = useful_data.replace("%20", " ")
     response = ""
     content = ""
@@ -105,7 +110,14 @@ def get_request(conn, useful_data):
     response = http_response(200, len(content)) + "<html><body><p>"
     response += content
     response = response.encode("utf-8")
-    conn.sendall(response)
+
+    p = Packet(packet_type=0,
+               seq_num=1,
+               peer_ip_addr=peer_address,
+               peer_port=peer_port,
+               payload=response)
+
+    conn.sendto(p.to_bytes(), address)
 
 
 def post_request(conn, useful_data):

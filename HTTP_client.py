@@ -2,6 +2,8 @@ import socket
 import os
 import pygubu
 import tkinter
+import ipaddress
+from packet import Packet
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -43,7 +45,8 @@ class MyApplication(pygubu.TkApplication):
         self.bad_request = False
         verbose = False
         output = False
-        port = 80
+        server_port = 80
+        router_port = 3000
         url_index = 0
         output_file = ""
         official_request = ""
@@ -86,16 +89,21 @@ class MyApplication(pygubu.TkApplication):
         if self.bad_request:
             self.message.configure(text="Bad request, please try again.", foreground="red")
         else:
-            conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+            peer_ip = ipaddress.ip_address(socket.gethostbyname(host))
+
+            p = Packet(packet_type=0,
+                       seq_num=1,
+                       peer_ip_addr=peer_ip,
+                       peer_port=server_port,
+                       payload=official_request.encode("utf-8"))
 
             print(official_request)
 
             try:
-                conn.connect((host, port))
-                encoded_request = official_request.encode("utf-8")
-                conn.send(encoded_request)
+                conn.sendto(p.to_bytes(), (host, router_port))
                 response = conn.recv(4096).decode("utf-8")
-                conn.close()
 
                 if "400 BAD REQUEST" in response:
                     self.message.configure(text="Bad request, please try again.", foreground="red")
@@ -138,8 +146,9 @@ class MyApplication(pygubu.TkApplication):
                     print(new_official_request)
 
                     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    conn.connect((host, port))
+                    conn.connect((host, server_port))
                     new_encoded_request = new_official_request.encode("utf-8")
+
                     conn.send(new_encoded_request)
                     response = conn.recv(4096).decode("utf-8")
                     conn.close()
@@ -164,8 +173,10 @@ class MyApplication(pygubu.TkApplication):
                 self.message.configure(text="Request accepted.", foreground="green")
             except IndexError:
                 self.message.configure(text="Bad request, please try again.", foreground="red")
-
-            conn.close()
+            except WindowsError:
+                self.message.configure(text=WindowsError.winerror, foreground="red")
+            finally:
+                conn.close()
 
     def get_request(self, request, host):
         try:
