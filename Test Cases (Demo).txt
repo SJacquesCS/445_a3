@@ -1,0 +1,37 @@
+# COMP 445 - ASSIGNMENT 2
+# Tri-Luong Steven Dien
+# 27415281
+
+[GET REQUESTS]
+GET / --> localhost:80/
+
+GET /PlainText --> localhost:80/PlainText
+GET /HTML --> localhost:80/HTML
+GET /JSON --> localhost:80/JSON
+GET /XML --> localhost:80/XML
+
+GET /HelloWorld in TestFolder directory --> localhost:80/HelloWorld?d=/TestFolder
+GET /foo in TestFolder directory --> localhost:80/foo?d=/TestFolder
+GET /bar in TestFolder directory --> localhost:80/bar?d=/TestFolder
+
+
+[POST REQUESTS]
+Create a new file with "abc123" as content (in current directory)
+POST /NewFile.txt --> localhost:80/NewFile.txt?c=abc123
+
+Overwrite the created file with new content (in current directory)
+POST /NewFile.txt --> localhost:80/NewFile.txt?c=123abc
+
+Create a new file with "abc123" as content (in a sub directory)
+POST /NewFileInSubDir.txt --> localhost:80/NewFile.txt?d=/TestFolder&c=abc123
+
+Overwrite the created file with new content (in sub directory)
+POST /NewFileInSubDir.txt --> localhost:80/NewFile.txt?d=/TestFolder&c=abc123&c=123abc
+
+
+Trying to access a directory outside of the current working directory / sub folder
+GET localhost:80/AccessDenied?d=C:\ <-- Result with a bad request
+
+Trying to overwrite a file which is set to read only
+POST localhost:80/HelloWorld.txt?d=/TestFolder&c=newdata <-- Result with a forbidden response
+
