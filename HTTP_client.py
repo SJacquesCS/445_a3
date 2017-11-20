@@ -173,8 +173,8 @@ class MyApplication(pygubu.TkApplication):
                 self.message.configure(text="Request accepted.", foreground="green")
             except IndexError:
                 self.message.configure(text="Bad request, please try again.", foreground="red")
-            except WindowsError:
-                self.message.configure(text=WindowsError.winerror, foreground="red")
+            except OSError as e:
+                self.message.configure(text=e.strerror, foreground="red")
             finally:
                 conn.close()
 
@@ -256,7 +256,7 @@ class MyApplication(pygubu.TkApplication):
                     temp = contents[x].replace("'", "").rstrip("\r\n")
                     data.append(str(temp))
 
-            official_request += contents[len(contents) - 1]
+            official_request += request.split(host)[1]
 
             official_request += " HTTP/1.0\r\nHost: " + str(host)
 

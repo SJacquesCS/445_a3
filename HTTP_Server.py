@@ -3,7 +3,6 @@
 # 27415281
 
 import socket
-import threading
 import os
 import time
 from packet import Packet
@@ -21,15 +20,14 @@ def run_server(host, port):
         listener.close()
 
 
-def handle_client(conn, data, address):
+def handle_client(conn, data, router_address):
     p = Packet.from_bytes(data)
 
-    port = p.peer_port
     decoded_data = p.payload.decode("utf-8")
 
-    print('Router: ', address)
+    print('Router: ', router_address)
     print('Packet: ', p)
-    print("Address: ", p.peer_ip_addr)
+    print("router_address: ", p.peer_ip_addr)
     print('Payload: ', decoded_data)
 
     try:
@@ -38,11 +36,11 @@ def handle_client(conn, data, address):
             print(decoded_data)
 
             if 'GET' in useful_data:
-                get_request(conn, useful_data, p.peer_ip_addr, p.peer_port, address, port)
+                get_request(conn, useful_data, p.peer_ip_addr, p.peer_port, router_address)
                 break
 
             if 'POST' in useful_data:
-                post_request(conn, useful_data, p.peer_ip_addr, p.peer_port, address, port)
+                post_request(conn, useful_data, p.peer_ip_addr, p.peer_port, router_address)
                 break
 
     except FileNotFoundError:
@@ -53,7 +51,7 @@ def handle_client(conn, data, address):
     except PermissionError:
         response = http_response(403, 0)
         response = response.encode("utf-8")
-        conn.sendto(response)
+        conn.sendto(response, router_address)
 
     except OSError:
         response = http_response(400, 0)
@@ -61,10 +59,10 @@ def handle_client(conn, data, address):
         conn.sendto(response)
 
     finally:
-        print('Client from', address, 'has disconnected')
+        print('Client from', router_address, 'has disconnected')
 
 
-def get_request(conn, useful_data, peer_address, peer_port, address, port):
+def get_request(conn, useful_data, peer_address, peer_port, router_address):
     useful_data = useful_data.replace("%20", " ")
     response = ""
     content = ""
@@ -117,10 +115,10 @@ def get_request(conn, useful_data, peer_address, peer_port, address, port):
                peer_port=peer_port,
                payload=response)
 
-    conn.sendto(p.to_bytes(), address)
+    conn.sendto(p.to_bytes(), router_address)
 
 
-def post_request(conn, useful_data):
+def post_request(conn, useful_data, peer_address, peer_port, router_address):
     content = ""
     file_requested = ""
 
@@ -156,7 +154,14 @@ def post_request(conn, useful_data):
     response = http_response(200, len(return_message)) + "<html><body><p>"
     response += return_message + "</p></body></html>"
     response = response.encode("utf-8")
-    conn.sendall(response)
+
+    p = Packet(packet_type=0,
+               seq_num=1,
+               peer_ip_addr=peer_address,
+               peer_port=peer_port,
+               payload=response)
+
+    conn.sendto(p.to_bytes(), router_address)
 
 
 def http_response(number, length):
