@@ -311,6 +311,40 @@ class MyApplication(pygubu.TkApplication):
         self.response.insert(tkinter.END, response)
 
 
+    def three_way_handshake(self):
+        conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        host = ""
+        peer_ip = ipaddress.ip_address(socket.gethostbyname(host))
+        server_port = 80
+        router_port = 3000
+        p = Packet(packet_type=1,
+                   seq_num=1,
+                   peer_ip_addr=peer_ip,
+                   peer_port=server_port,
+                   payload="".encode("utf-8"))
+        try:
+            conn.sendto(p.to_bytes(), (host, router_port))
+            self.response.insert(tkinter.END, str("Sending SYN Packet..."))
+            data, sender = conn.recvfrom(1024)
+
+            response_packet = Packet.from_bytes(data)
+            decoded_packet_type = response_packet.packet_type.decode("utf-8")
+
+            if decoded_packet_type == 2:
+                self.response.insert(tkinter.END, str("Received SYN-ACK Packet..."))
+                p = Packet(packet_type=3,
+                           seq_num=1,
+                           peer_ip_addr=peer_ip,
+                           peer_port=server_port,
+                           payload="".encode("utf-8"))
+                conn.sendto(p.to_bytes(), (host, router_port))
+
+                self.response.insert(tkinter.END, str("Sending ACK Packet"))
+                self.response.insert(tkinter.END, str("UDP \"Connection\" Established"))
+        finally:
+            conn.close()
+
+
 if __name__ == '__main__':
     root = tkinter.Tk()
     root.resizable(width=False, height=False)
