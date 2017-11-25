@@ -43,8 +43,16 @@ def handle_client(conn, data, router_address):
                 post_request(conn, useful_data, p.peer_ip_addr, p.peer_port, router_address)
                 break
 
-            if p.packet_type == 1:
+            if p.packet_type == 1 and p.seq_num == 0:
                 p = Packet(packet_type=2,
+                           seq_num=0,
+                           peer_ip_addr=p.peer_ip_addr,
+                           peer_port=p.peer_port,
+                           payload="")
+                conn.sendto(p.to_bytes(), router_address)
+
+            if p.packet_type == 3 and p.seq_num == 1:
+                p = Packet(packet_type=3,
                            seq_num=1,
                            peer_ip_addr=p.peer_ip_addr,
                            peer_port=p.peer_port,

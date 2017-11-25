@@ -318,7 +318,7 @@ class MyApplication(pygubu.TkApplication):
         server_port = 80
         router_port = 3000
         p = Packet(packet_type=1,
-                   seq_num=1,
+                   seq_num=0,
                    peer_ip_addr=peer_ip,
                    peer_port=server_port,
                    payload="".encode("utf-8"))
@@ -329,8 +329,9 @@ class MyApplication(pygubu.TkApplication):
 
             response_packet = Packet.from_bytes(data)
             decoded_packet_type = response_packet.packet_type.decode("utf-8")
+            decoded_seq_num = response_packet.seq_num.decode("utf-8")
 
-            if decoded_packet_type == 2:
+            if decoded_packet_type == 2 and decoded_seq_num == 0:
                 self.response.insert(tkinter.END, str("Received SYN-ACK Packet..."))
                 p = Packet(packet_type=3,
                            seq_num=1,
