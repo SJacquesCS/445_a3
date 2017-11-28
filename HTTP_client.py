@@ -3,7 +3,6 @@ import os
 import pygubu
 import tkinter
 import ipaddress
-import time
 from packet import Packet
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
