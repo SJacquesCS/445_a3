@@ -23,6 +23,7 @@ def run_server(host, port):
 def handle_client(conn, data, router_address):
     p = Packet.from_bytes(data)
 
+    sequence_number = p.seq_num
     decoded_data = p.payload.decode("utf-8")
 
     print('Router: ', router_address)
@@ -31,33 +32,22 @@ def handle_client(conn, data, router_address):
     print('Payload: ', decoded_data)
 
     try:
-        while True:
-            useful_data = decoded_data.split(" HTTP/")[0]
-            print(decoded_data)
+        useful_data = decoded_data.split(" HTTP/")[0]
+        print(decoded_data)
 
-            if 'GET' in useful_data:
-                get_request(conn, useful_data, p.peer_ip_addr, p.peer_port, router_address)
-                break
+        if 'GET' in useful_data:
+            get_request(conn, useful_data, p.peer_ip_addr, p.peer_port, router_address, sequence_number)
 
-            if 'POST' in useful_data:
-                post_request(conn, useful_data, p.peer_ip_addr, p.peer_port, router_address)
-                break
+        if 'POST' in useful_data:
+            post_request(conn, useful_data, p.peer_ip_addr, p.peer_port, router_address, sequence_number)
 
-            if p.packet_type == 1 and p.seq_num == 0:
-                p = Packet(packet_type=2,
-                           seq_num=0,
-                           peer_ip_addr=p.peer_ip_addr,
-                           peer_port=p.peer_port,
-                           payload="")
-                conn.sendto(p.to_bytes(), router_address)
-
-            if p.packet_type == 3 and p.seq_num == 1:
-                p = Packet(packet_type=3,
-                           seq_num=1,
-                           peer_ip_addr=p.peer_ip_addr,
-                           peer_port=p.peer_port,
-                           payload="")
-                conn.sendto(p.to_bytes(), router_address)
+        if p.packet_type == 1 and p.seq_num == 0:
+            p = Packet(packet_type=2,
+                       seq_num=0,
+                       peer_ip_addr=p.peer_ip_addr,
+                       peer_port=p.peer_port,
+                       payload="")
+            conn.sendto(p.to_bytes(), router_address)
 
     except FileNotFoundError:
         response = http_response(404, 0)
@@ -78,7 +68,7 @@ def handle_client(conn, data, router_address):
         print('Client from', router_address, 'has disconnected')
 
 
-def get_request(conn, useful_data, peer_address, peer_port, router_address):
+def get_request(conn, useful_data, peer_address, peer_port, router_address, sequence_number):
     useful_data = useful_data.replace("%20", " ")
     response = ""
     content = ""
@@ -126,7 +116,7 @@ def get_request(conn, useful_data, peer_address, peer_port, router_address):
     response = response.encode("utf-8")
 
     p = Packet(packet_type=0,
-               seq_num=1,
+               seq_num=sequence_number,
                peer_ip_addr=peer_address,
                peer_port=peer_port,
                payload=response)
@@ -134,7 +124,7 @@ def get_request(conn, useful_data, peer_address, peer_port, router_address):
     conn.sendto(p.to_bytes(), router_address)
 
 
-def post_request(conn, useful_data, peer_address, peer_port, router_address):
+def post_request(conn, useful_data, peer_address, peer_port, router_address, sequence_number):
     content = ""
     file_requested = ""
 
@@ -172,7 +162,7 @@ def post_request(conn, useful_data, peer_address, peer_port, router_address):
     response = response.encode("utf-8")
 
     p = Packet(packet_type=0,
-               seq_num=1,
+               seq_num=sequence_number,
                peer_ip_addr=peer_address,
                peer_port=peer_port,
                payload=response)

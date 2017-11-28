@@ -3,6 +3,7 @@ import os
 import pygubu
 import tkinter
 import ipaddress
+import time
 from packet import Packet
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -12,6 +13,7 @@ class MyApplication(pygubu.TkApplication):
     def _create_ui(self):
         self.builder = builder = pygubu.Builder()
         self.bad_request = False
+        self.sequence_number = 0
 
         builder.add_from_file(os.path.join(CURRENT_DIR, '445_a1.ui'))
 
@@ -29,6 +31,9 @@ class MyApplication(pygubu.TkApplication):
         self.message.configure(foreground="snow4")
 
         builder.connect_callbacks(self)
+
+        self.three_way_handshake()
+        print("test")
 
     def quit(self):
         self.mainwindow.quit()
@@ -94,7 +99,7 @@ class MyApplication(pygubu.TkApplication):
             peer_ip = ipaddress.ip_address(socket.gethostbyname(host))
 
             p = Packet(packet_type=0,
-                       seq_num=1,
+                       seq_num=self.sequence_number,
                        peer_ip_addr=peer_ip,
                        peer_port=server_port,
                        payload=official_request.encode("utf-8"))
@@ -103,7 +108,26 @@ class MyApplication(pygubu.TkApplication):
 
             try:
                 conn.sendto(p.to_bytes(), (host, router_port))
-                response = conn.recv(4096).decode("utf-8")
+
+                conn.settimeout(5)
+
+                print("Sending with " + str(self.sequence_number))
+
+                while True:
+                    try:
+                        data, sender = conn.recvfrom(1024)
+                        rcv_pkt = Packet.from_bytes(data)
+
+                        if rcv_pkt.seq_num == self.sequence_number:
+                            break
+                    except socket.timeout:
+                        conn.sendto(p.to_bytes(), (host, router_port))
+                        print("Sending again")
+                        continue
+
+                self.sequence_number += 1
+                rcv_pkt = Packet.from_bytes(data)
+                response = rcv_pkt.payload.decode("utf-8")
 
                 if "400 BAD REQUEST" in response:
                     self.message.configure(text="Bad request, please try again.", foreground="red")
@@ -173,8 +197,6 @@ class MyApplication(pygubu.TkApplication):
                 self.message.configure(text="Request accepted.", foreground="green")
             except IndexError:
                 self.message.configure(text="Bad request, please try again.", foreground="red")
-            except OSError as e:
-                self.message.configure(text=e.strerror, foreground="red")
             finally:
                 conn.close()
 
@@ -310,38 +332,44 @@ class MyApplication(pygubu.TkApplication):
 
         self.response.insert(tkinter.END, response)
 
-
     def three_way_handshake(self):
         conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        host = ""
+        host = "localhost"
         peer_ip = ipaddress.ip_address(socket.gethostbyname(host))
         server_port = 80
         router_port = 3000
         p = Packet(packet_type=1,
-                   seq_num=0,
+                   seq_num=self.sequence_number,
                    peer_ip_addr=peer_ip,
                    peer_port=server_port,
                    payload="".encode("utf-8"))
         try:
             conn.sendto(p.to_bytes(), (host, router_port))
-            self.response.insert(tkinter.END, str("Sending SYN Packet..."))
-            data, sender = conn.recvfrom(1024)
+            self.response.insert(tkinter.END, str("Sending SYN Packet...\n\n"))
 
-            response_packet = Packet.from_bytes(data)
-            decoded_packet_type = response_packet.packet_type.decode("utf-8")
-            decoded_seq_num = response_packet.seq_num.decode("utf-8")
+            conn.settimeout(5)
 
-            if decoded_packet_type == 2 and decoded_seq_num == 0:
-                self.response.insert(tkinter.END, str("Received SYN-ACK Packet..."))
-                p = Packet(packet_type=3,
-                           seq_num=1,
-                           peer_ip_addr=peer_ip,
-                           peer_port=server_port,
-                           payload="".encode("utf-8"))
-                conn.sendto(p.to_bytes(), (host, router_port))
+            while True:
+                try:
+                    conn.recvfrom(1024)
+                    break
+                except socket.timeout:
+                    conn.sendto(p.to_bytes(), (host, router_port))
+                    print("Sending again")
+                    continue
 
-                self.response.insert(tkinter.END, str("Sending ACK Packet"))
-                self.response.insert(tkinter.END, str("UDP \"Connection\" Established"))
+            self.sequence_number += 1
+
+            p = Packet(packet_type=3,
+                       seq_num=self.sequence_number,
+                       peer_ip_addr=peer_ip,
+                       peer_port=server_port,
+                       payload="".encode("utf-8"))
+
+            conn.sendto(p.to_bytes(), (host, router_port))
+            self.response.insert(tkinter.END, str("Sending ACK Packet...\n\n"))
+            self.response.insert(tkinter.END, str("UDP \"Connection\" Established\n\n"))
+            self.sequence_number += 1
         finally:
             conn.close()
 
