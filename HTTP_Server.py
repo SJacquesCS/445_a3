@@ -43,26 +43,35 @@ def handle_client(conn, data, router_address):
 
         if p.packet_type == 1 and p.seq_num == 0:
             p = Packet(packet_type=2,
-                       seq_num=0,
+                       seq_num=sequence_number,
                        peer_ip_addr=p.peer_ip_addr,
                        peer_port=p.peer_port,
                        payload="")
             conn.sendto(p.to_bytes(), router_address)
 
     except FileNotFoundError:
-        response = http_response(404, 0)
-        response = response.encode("utf-8")
-        conn.sendto(response)
+        p = Packet(packet_type=0,
+                   seq_num=sequence_number,
+                   peer_ip_addr=p.peer_ip_addr,
+                   peer_port=p.peer_port,
+                   payload="404 NOT FOUND")
+        conn.sendto(p.to_bytes(), router_address)
 
     except PermissionError:
-        response = http_response(403, 0)
-        response = response.encode("utf-8")
-        conn.sendto(response, router_address)
+        p = Packet(packet_type=0,
+                   seq_num=sequence_number,
+                   peer_ip_addr=p.peer_ip_addr,
+                   peer_port=p.peer_port,
+                   payload="403 Forbidden")
+        conn.sendto(p.to_bytes(), router_address)
 
     except OSError:
-        response = http_response(400, 0)
-        response = response.encode("utf-8")
-        conn.sendto(response)
+        p = Packet(packet_type=0,
+                   seq_num=sequence_number,
+                   peer_ip_addr=p.peer_ip_addr,
+                   peer_port=p.peer_port,
+                   payload="400 BAD REQUEST")
+        conn.sendto(p.to_bytes(), router_address)
 
     finally:
         print('Client from', router_address, 'has disconnected')
@@ -70,7 +79,6 @@ def handle_client(conn, data, router_address):
 
 def get_request(conn, useful_data, peer_address, peer_port, router_address, sequence_number):
     useful_data = useful_data.replace("%20", " ")
-    response = ""
     content = ""
 
     if "d=" in useful_data:
@@ -126,48 +134,69 @@ def get_request(conn, useful_data, peer_address, peer_port, router_address, sequ
 
 def post_request(conn, useful_data, peer_address, peer_port, router_address, sequence_number):
     content = ""
-    file_requested = ""
 
-    if "d=" in useful_data:
-        directory = "." + useful_data.split("d=")[1]
-        file_requested = useful_data.split("/")[1]
-        file_requested = file_requested.split("?")[0]
-
-        if "c=" in useful_data:
-            directory = directory.split("&")[0]
-            content = useful_data.split("c=")[1]
-            content = content.replace("%20", " ")
-            content = content.replace("+", " ")
-    else:
-        directory = '.'
-        file_requested = useful_data.split("/")[1]
-
-        if "c=" in useful_data:
+    try:
+        if "d=" in useful_data:
+            directory = "." + useful_data.split("d=")[1]
+            file_requested = useful_data.split("/")[1]
             file_requested = file_requested.split("?")[0]
-            content = useful_data.split("c=")[1]
-            content = content.replace("%20", " ")
-            content = content.replace("+", " ")
 
-    if os.path.isfile(directory + "/" + file_requested):
-        output_file = open(directory + "/" + file_requested, 'w')
-        output_file.write(content)
-        return_message = "File Overwritten<br />" + content
-    else:
-        output_file = open(directory + "/" + file_requested, 'w')
-        output_file.write(content)
-        return_message = "New File Created<br />" + content
+            if "c=" in useful_data:
+                directory = directory.split("&")[0]
+                content = useful_data.split("c=")[1]
+                content = content.replace("%20", " ")
+                content = content.replace("+", " ")
+        else:
+            directory = '.'
+            file_requested = useful_data.split("/")[1]
 
-    response = http_response(200, len(return_message)) + "<html><body><p>"
-    response += return_message + "</p></body></html>"
-    response = response.encode("utf-8")
+            if "c=" in useful_data:
+                file_requested = file_requested.split("?")[0]
+                content = useful_data.split("c=")[1]
+                content = content.replace("%20", " ")
+                content = content.replace("+", " ")
 
-    p = Packet(packet_type=0,
-               seq_num=sequence_number,
-               peer_ip_addr=peer_address,
-               peer_port=peer_port,
-               payload=response)
+        if os.path.isfile(directory + "/" + file_requested):
+            output_file = open(directory + "/" + file_requested, 'w')
+            output_file.write(content)
+            return_message = "File Overwritten<br />" + content
+        else:
+            output_file = open(directory + "/" + file_requested, 'w')
+            output_file.write(content)
+            return_message = "New File Created<br />" + content
 
-    conn.sendto(p.to_bytes(), router_address)
+        response = http_response(200, len(return_message)) + "<html><body><p>"
+        response += return_message + "</p></body></html>"
+        response = response.encode("utf-8")
+
+        p = Packet(packet_type=0,
+                   seq_num=sequence_number,
+                   peer_ip_addr=peer_address,
+                   peer_port=peer_port,
+                   payload=response)
+        conn.sendto(p.to_bytes(), router_address)
+    except FileNotFoundError:
+        p = Packet(packet_type=0,
+                   seq_num=sequence_number,
+                   peer_ip_addr=peer_address,
+                   peer_port=peer_port,
+                   payload="404 NOT FOUND")
+        conn.sendto(p.to_bytes(), router_address)
+    except PermissionError:
+        p = Packet(packet_type=0,
+                   seq_num=sequence_number,
+                   peer_ip_addr=p.peer_ip_addr,
+                   peer_port=p.peer_port,
+                   payload="403 Forbidden")
+        conn.sendto(p.to_bytes(), router_address)
+    except OSError:
+        response = http_response(400, 0)
+        p = Packet(packet_type=0,
+                   seq_num=sequence_number,
+                   peer_ip_addr=peer_address,
+                   peer_port=peer_port,
+                   payload=response)
+        conn.sendto(p.to_bytes(), router_address)
 
 
 def http_response(number, length):

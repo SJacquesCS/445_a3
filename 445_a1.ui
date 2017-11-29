@@ -151,6 +151,15 @@ httpc help post
 
 [Host: localhost] [Port: 80]
 httpc GET http://localhost/
+httpc GET http://localhost/PlainText
+httpc GET http://localhost/HTML
+httpc GET http://localhost/JSON
+httpc GET http://localhost/XML
+
+httpc POST http://localhost/new_file.txt?c=123abc
+httpc POST http://localhost/new_file.txt?d=/TestFolder&amp;c=123abc
+httpc POST http://localhost/AccessDenied?d=C:\
+httpc POST http://localhost/helloworld.txt?d=/TestFolder&amp;c=newdata
 
 [Host: httpbin.org] [Port: 80]
 httpc GET http://httpbin.org/status/418
@@ -162,7 +171,7 @@ httpc POST -h Content-Type:application/json -d '{"Assignment": 1}' http://httpbi
 httpc POST -v -h Content-Type:application/json -d '{"Assignment": 1, "Course":"Networking"}' http://httpbin.org/post?course=networking&amp;assignment=1
 
 httpc GET http://httpbin.org/redirect/3</property>
-            <property name="width">46</property>
+            <property name="width">48</property>
             <property name="wrap">none</property>
             <layout>
               <property name="column">0</property>
